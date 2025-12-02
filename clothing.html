@@ -10,6 +10,9 @@
             text-align: center;
             padding: 20px;
         }
+        h1 {
+            font-size: 1.5em;
+        }
         #label-container div {
             margin-top: 10px;
             font-size: 1.2em;
@@ -50,16 +53,16 @@
             model = await tmImage.load(modelURL, metadataURL);
             maxPredictions = model.getTotalClasses();
 
-            // --- Webcam Setup for REAR CAMERA ---
+            // --- Webcam Setup for REAR CAMERA (SIMPLIFIED CONSTRAINTS) ---
             const width = 200;
             const height = 200;
             const flip = false; // Usually set to false for the back camera
             
-            // Constraints to specifically request the rear-facing camera
+            // Simplified constraints to request the rear-facing camera
             const constraints = {
                 width: width, 
                 height: height,
-                facingMode: { exact: "environment" } 
+                facingMode: "environment" // Removed 'exact' keyword for better compatibility
             };
 
             // Pass the constraints object when creating the Webcam
