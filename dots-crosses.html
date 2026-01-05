@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5x5 Dots and Crosses</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .status {
+            text-align: center;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            min-height: 30px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin: 0 auto 30px;
+            max-width: 500px;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: #f5f5f5;
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            font-size: 2em;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .cell:hover:not(.taken) {
+            background: #e8e8e8;
+            transform: scale(1.05);
+            border-color: #667eea;
+        }
+
+        .cell.taken {
+            cursor: not-allowed;
+        }
+
+        .cell.x {
+            color: #667eea;
+        }
+
+        .cell.o {
+            color: #764ba2;
+        }
+
+        .cell.winner {
+            background: #ffd700;
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .controls {
+            text-align: center;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 10px;
+        }
+
+        .score-item {
+            text-align: center;
+        }
+
+        .score-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .score-value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .score-item.player .score-value {
+            color: #667eea;
+        }
+
+        .score-item.computer .score-value {
+            color: #764ba2;
+        }
+
+        .score-item.draws .score-value {
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dots & Crosses</h1>
+        <div class="subtitle">5x5 - Get 5 in a row to win!</div>
+
+        <div class="score-board">
+            <div class="score-item player">
+                <div class="score-label">You (X)</div>
+                <div class="score-value" id="playerScore">0</div>
+            </div>
+            <div class="score-item draws">
+                <div class="score-label">Draws</div>
+                <div class="score-value" id="drawScore">0</div>
+            </div>
+            <div class="score-item computer">
+                <div class="score-label">Computer (O)</div>
+                <div class="score-value" id="computerScore">0</div>
+            </div>
+        </div>
+
+        <div class="status" id="status">Your turn!</div>
+
+        <div class="board" id="board"></div>
+
+        <div class="controls">
+            <button onclick="resetGame()">New Game</button>
+        </div>
+    </div>
+
+    <script>
+        const BOARD_SIZE = 5;
+        const WIN_LENGTH = 5;
+        let board = [];
+        let gameActive = true;
+        let scores = {
+            player: 0,
+            computer: 0,
+            draws: 0
+        };
+
+        function initBoard() {
+            board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(''));
+            gameActive = true;
+
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.addEventListener('click', handleCellClick);
+                    boardElement.appendChild(cell);
+                }
+            }
+
+            updateStatus("Your turn!");
+        }
+
+        function handleCellClick(e) {
+            if (!gameActive) return;
+
+            const row = parseInt(e.target.dataset.row);
+            const col = parseInt(e.target.dataset.col);
+
+            if (board[row][col] !== '') return;
+
+            makeMove(row, col, 'X');
+
+            if (!gameActive) return;
+
+            setTimeout(() => {
+                if (gameActive) {
+                    computerMove();
+                }
+            }, 500);
+        }
+
+        function makeMove(row, col, player) {
+            board[row][col] = player;
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            cell.textContent = player;
+            cell.classList.add('taken', player.toLowerCase());
+
+            const result = checkWin(row, col, player);
+            if (result.won) {
+                gameActive = false;
+                highlightWinningCells(result.cells);
+                if (player === 'X') {
+                    scores.player++;
+                    updateScore();
+                    updateStatus("🎉 You win!");
+                } else {
+                    scores.computer++;
+                    updateScore();
+                    updateStatus("😔 Computer wins!");
+                }
+            } else if (isBoardFull()) {
+                gameActive = false;
+                scores.draws++;
+                updateScore();
+                updateStatus("It's a draw!");
+            } else {
+                updateStatus(player === 'X' ? "Computer's turn..." : "Your turn!");
+            }
+        }
+
+        function computerMove() {
+            // Strategy: 1) Try to win, 2) Block player, 3) Random move
+            let move = findWinningMove('O') || findWinningMove('X') || findStrategicMove() || getRandomMove();
+
+            if (move) {
+                makeMove(move.row, move.col, 'O');
+            }
+        }
+
+        function findWinningMove(player) {
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (board[row][col] === '') {
+                        board[row][col] = player;
+                        const result = checkWin(row, col, player);
+                        board[row][col] = '';
+                        if (result.won) {
+                            return { row, col };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function findStrategicMove() {
+            // Prefer center and adjacent cells
+            const center = Math.floor(BOARD_SIZE / 2);
+
+            // Try center
+            if (board[center][center] === '') {
+                return { row: center, col: center };
+            }
+
+            // Try cells near existing O's
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (board[row][col] === 'O') {
+                        // Check adjacent cells
+                        const adjacent = [
+                            [row-1, col], [row+1, col], [row, col-1], [row, col+1],
+                            [row-1, col-1], [row-1, col+1], [row+1, col-1], [row+1, col+1]
+                        ];
+                        for (let [r, c] of adjacent) {
+                            if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === '') {
+                                return { row: r, col: c };
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        function getRandomMove() {
+            const emptyCells = [];
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (board[row][col] === '') {
+                        emptyCells.push({ row, col });
+                    }
+                }
+            }
+            return emptyCells.length > 0 ? emptyCells[Math.floor(Math.random() * emptyCells.length)] : null;
+        }
+
+        function checkWin(row, col, player) {
+            const directions = [
+                [[0, 1], [0, -1]],   // Horizontal
+                [[1, 0], [-1, 0]],   // Vertical
+                [[1, 1], [-1, -1]],  // Diagonal \
+                [[1, -1], [-1, 1]]   // Diagonal /
+            ];
+
+            for (let dirPair of directions) {
+                let cells = [[row, col]];
+
+                for (let [dr, dc] of dirPair) {
+                    let r = row + dr;
+                    let c = col + dc;
+                    while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === player) {
+                        cells.push([r, c]);
+                        r += dr;
+                        c += dc;
+                    }
+                }
+
+                if (cells.length >= WIN_LENGTH) {
+                    return { won: true, cells };
+                }
+            }
+
+            return { won: false };
+        }
+
+        function highlightWinningCells(cells) {
+            cells.forEach(([row, col]) => {
+                const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                cell.classList.add('winner');
+            });
+        }
+
+        function isBoardFull() {
+            return board.every(row => row.every(cell => cell !== ''));
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        function updateScore() {
+            document.getElementById('playerScore').textContent = scores.player;
+            document.getElementById('computerScore').textContent = scores.computer;
+            document.getElementById('drawScore').textContent = scores.draws;
+        }
+
+        function resetGame() {
+            initBoard();
+        }
+
+        // Initialize the game
+        initBoard();
+    </script>
+</body>
+</html>
