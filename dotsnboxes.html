@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dots and Boxes - 5x5</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --dot-color: #94a3b8;
+            --dot-hover: #64748b;
+            --p1-color: #3b82f6;
+            --p2-color: #ef4444;
+            --line-width: 8px;
+            --dot-size: 14px;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        .container {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 95vw;
+        }
+
+        h1 { margin-bottom: 0.5rem; font-weight: 800; }
+
+        .scoreboard {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 1.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .player-score {
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .p1-active { border-color: var(--p1-color); background: #eff6ff; }
+        .p2-active { border-color: var(--p2-color); background: #fef2f2; }
+
+        .p1-text { color: var(--p1-color); }
+        .p2-text { color: var(--p2-color); }
+
+        /* Game Board Styles */
+        #game-board {
+            position: relative;
+            display: inline-grid;
+            padding: 20px;
+            background: #fff;
+            user-select: none;
+            touch-action: none;
+        }
+
+        .dot {
+            width: var(--dot-size);
+            height: var(--dot-size);
+            background-color: var(--dot-color);
+            border-radius: 50%;
+            z-index: 10;
+        }
+
+        .line {
+            position: absolute;
+            background-color: #e2e8f0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .line:hover:not(.taken) {
+            background-color: #cbd5e1;
+        }
+
+        .line.taken {
+            cursor: default;
+        }
+
+        .line.p1 { background-color: var(--p1-color); }
+        .line.p2 { background-color: var(--p2-color); }
+
+        .box {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.5rem;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: scale(0);
+        }
+
+        .box.taken { transform: scale(1); }
+        .box.p1 { background-color: rgba(59, 130, 246, 0.2); color: var(--p1-color); }
+        .box.p2 { background-color: rgba(239, 68, 68, 0.2); color: var(--p2-color); }
+
+        .controls {
+            margin-top: 1.5rem;
+        }
+
+        button {
+            background-color: #1e293b;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: #334155; }
+
+        .status-msg {
+            margin-top: 1rem;
+            font-weight: 600;
+            height: 1.5rem;
+        }
+
+        @media (max-width: 500px) {
+            :root {
+                --dot-size: 10px;
+                --line-width: 6px;
+            }
+            .container { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Dots and Boxes</h1>
+    
+    <div class="scoreboard">
+        <div id="p1-score-box" class="player-score p1-active">
+            You: <span id="p1-score">0</span>
+        </div>
+        <div id="p2-score-box" class="player-score">
+            CPU: <span id="p2-score">0</span>
+        </div>
+    </div>
+
+    <div id="game-board"></div>
+
+    <div class="status-msg" id="status">Your turn!</div>
+
+    <div class="controls">
+        <button onclick="resetGame()">Reset Game</button>
+    </div>
+</div>
+
+<script>
+    const GRID_SIZE = 5; // 5x5 boxes
+    const DOTS_COUNT = GRID_SIZE + 1;
+    const SPACING = 60; // Pixels between dots
+    
+    let state = {
+        hLines: Array(DOTS_COUNT).fill().map(() => Array(GRID_SIZE).fill(null)),
+        vLines: Array(GRID_SIZE).fill().map(() => Array(DOTS_COUNT).fill(null)),
+        boxes: Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(null)),
+        p1Score: 0,
+        p2Score: 0,
+        currentPlayer: 1, // 1 for Human, 2 for CPU
+        gameOver: false
+    };
+
+    const boardEl = document.getElementById('game-board');
+    const statusEl = document.getElementById('status');
+
+    function initBoard() {
+        boardEl.innerHTML = '';
+        const size = (DOTS_COUNT - 1) * SPACING + 14;
+        boardEl.style.width = size + 'px';
+        boardEl.style.height = size + 'px';
+
+        // Create Lines (Horizontal)
+        for (let r = 0; r < DOTS_COUNT; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                const line = document.createElement('div');
+                line.className = 'line';
+                line.style.width = SPACING + 'px';
+                line.style.height = 'var(--line-width)';
+                line.style.left = (c * SPACING + 7) + 'px';
+                line.style.top = (r * SPACING + 3) + 'px';
+                line.onclick = () => handleMove('h', r, c);
+                line.id = `h-${r}-${c}`;
+                boardEl.appendChild(line);
+            }
+        }
+
+        // Create Lines (Vertical)
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < DOTS_COUNT; c++) {
+                const line = document.createElement('div');
+                line.className = 'line';
+                line.style.width = 'var(--line-width)';
+                line.style.height = SPACING + 'px';
+                line.style.left = (c * SPACING + 3) + 'px';
+                line.style.top = (r * SPACING + 7) + 'px';
+                line.onclick = () => handleMove('v', r, c);
+                line.id = `v-${r}-${c}`;
+                boardEl.appendChild(line);
+            }
+        }
+
+        // Create Boxes
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                const box = document.createElement('div');
+                box.className = 'box';
+                box.style.width = (SPACING - 8) + 'px';
+                box.style.height = (SPACING - 8) + 'px';
+                box.style.left = (c * SPACING + 11) + 'px';
+                box.style.top = (r * SPACING + 11) + 'px';
+                box.id = `box-${r}-${c}`;
+                boardEl.appendChild(box);
+            }
+        }
+
+        // Create Dots
+        for (let r = 0; r < DOTS_COUNT; r++) {
+            for (let c = 0; c < DOTS_COUNT; c++) {
+                const dot = document.createElement('div');
+                dot.className = 'dot';
+                dot.style.position = 'absolute';
+                dot.style.left = (c * SPACING) + 'px';
+                dot.style.top = (r * SPACING) + 'px';
+                boardEl.appendChild(dot);
+            }
+        }
+    }
+
+    function handleMove(type, r, c) {
+        if (state.gameOver || (state.currentPlayer === 2)) return;
+        makeMove(type, r, c);
+    }
+
+    function makeMove(type, r, c) {
+        const lineArr = type === 'h' ? state.hLines : state.vLines;
+        if (lineArr[r][c] !== null) return false;
+
+        lineArr[r][c] = state.currentPlayer;
+        const lineEl = document.getElementById(`${type}-${r}-${c}`);
+        lineEl.classList.add('taken', `p${state.currentPlayer}`);
+
+        let boxesCompleted = checkBoxes(type, r, c);
+
+        if (boxesCompleted > 0) {
+            updateScores();
+            if (checkGameOver()) return true;
+            
+            if (state.currentPlayer === 2) {
+                setTimeout(cpuMove, 600);
+            }
+        } else {
+            state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
+            updateUI();
+            if (state.currentPlayer === 2) {
+                setTimeout(cpuMove, 600);
+            }
+        }
+        return true;
+    }
+
+    function checkBoxes(type, r, c) {
+        let completed = 0;
+        if (type === 'h') {
+            // Check box above
+            if (r > 0 && isBoxComplete(r - 1, c)) completed += completeBox(r - 1, c);
+            // Check box below
+            if (r < GRID_SIZE && isBoxComplete(r, c)) completed += completeBox(r, c);
+        } else {
+            // Check box left
+            if (c > 0 && isBoxComplete(r, c - 1)) completed += completeBox(r, c - 1);
+            // Check box right
+            if (c < GRID_SIZE && isBoxComplete(r, c)) completed += completeBox(r, c);
+        }
+        return completed;
+    }
+
+    function isBoxComplete(r, c) {
+        return state.hLines[r][c] !== null &&
+               state.hLines[r + 1][c] !== null &&
+               state.vLines[r][c] !== null &&
+               state.vLines[r][c + 1] !== null;
+    }
+
+    function completeBox(r, c) {
+        if (state.boxes[r][c] !== null) return 0;
+        state.boxes[r][c] = state.currentPlayer;
+        const boxEl = document.getElementById(`box-${r}-${c}`);
+        boxEl.classList.add('taken', `p${state.currentPlayer}`);
+        boxEl.innerText = state.currentPlayer === 1 ? 'U' : 'C';
+        if (state.currentPlayer === 1) state.p1Score++;
+        else state.p2Score++;
+        return 1;
+    }
+
+    function updateScores() {
+        document.getElementById('p1-score').innerText = state.p1Score;
+        document.getElementById('p2-score').innerText = state.p2Score;
+    }
+
+    function updateUI() {
+        const p1Box = document.getElementById('p1-score-box');
+        const p2Box = document.getElementById('p2-score-box');
+        
+        if (state.currentPlayer === 1) {
+            p1Box.classList.add('p1-active');
+            p2Box.classList.remove('p2-active');
+            statusEl.innerText = "Your turn!";
+        } else {
+            p1Box.classList.remove('p1-active');
+            p2Box.classList.add('p2-active');
+            statusEl.innerText = "Computer is thinking...";
+        }
+    }
+
+    function checkGameOver() {
+        if (state.p1Score + state.p2Score === GRID_SIZE * GRID_SIZE) {
+            state.gameOver = true;
+            if (state.p1Score > state.p2Score) {
+                statusEl.innerHTML = "<span class='p1-text'>You Win! 🎉</span>";
+            } else if (state.p2Score > state.p1Score) {
+                statusEl.innerHTML = "<span class='p2-text'>Computer Wins! 🤖</span>";
+            } else {
+                statusEl.innerText = "It's a Tie! 🤝";
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function cpuMove() {
+        if (state.gameOver) return;
+
+        let availableMoves = [];
+        
+        // Find all possible moves
+        for(let r=0; r<DOTS_COUNT; r++) {
+            for(let c=0; c<GRID_SIZE; c++) {
+                if(state.hLines[r][c] === null) availableMoves.push({type: 'h', r, c});
+            }
+        }
+        for(let r=0; r<GRID_SIZE; r++) {
+            for(let c=0; c<DOTS_COUNT; c++) {
+                if(state.vLines[r][c] === null) availableMoves.push({type: 'v', r, c});
+            }
+        }
+
+        if (availableMoves.length === 0) return;
+
+        // Logic 1: Can I complete a box?
+        for (let move of availableMoves) {
+            if (wouldCompleteBox(move)) {
+                makeMove(move.type, move.r, move.c);
+                return;
+            }
+        }
+
+        // Logic 2: Avoid giving the opponent a box (don't move to a line where 2 lines are already taken)
+        let safeMoves = availableMoves.filter(move => !wouldCreateThree(move));
+        
+        let finalMove;
+        if (safeMoves.length > 0) {
+            finalMove = safeMoves[Math.floor(Math.random() * safeMoves.length)];
+        } else {
+            // Sacrifice: Pick move that gives least boxes (random for now)
+            finalMove = availableMoves[Math.floor(Math.random() * availableMoves.length)];
+        }
+
+        makeMove(finalMove.type, finalMove.r, finalMove.c);
+    }
+
+    function wouldCompleteBox(move) {
+        const {type, r, c} = move;
+        if (type === 'h') {
+            if (r > 0 && countLines(r-1, c) === 3) return true;
+            if (r < GRID_SIZE && countLines(r, c) === 3) return true;
+        } else {
+            if (c > 0 && countLines(r, c-1) === 3) return true;
+            if (c < GRID_SIZE && countLines(r, c) === 3) return true;
+        }
+        return false;
+    }
+
+    function wouldCreateThree(move) {
+        const {type, r, c} = move;
+        if (type === 'h') {
+            if (r > 0 && countLines(r-1, c) === 2) return true;
+            if (r < GRID_SIZE && countLines(r, c) === 2) return true;
+        } else {
+            if (c > 0 && countLines(r, c-1) === 2) return true;
+            if (c < GRID_SIZE && countLines(r, c) === 2) return true;
+        }
+        return false;
+    }
+
+    function countLines(boxR, boxC) {
+        let count = 0;
+        if (state.hLines[boxR][boxC] !== null) count++;
+        if (state.hLines[boxR+1][boxC] !== null) count++;
+        if (state.vLines[boxR][boxC] !== null) count++;
+        if (state.vLines[boxR][boxC+1] !== null) count++;
+        return count;
+    }
+
+    function resetGame() {
+        state = {
+            hLines: Array(DOTS_COUNT).fill().map(() => Array(GRID_SIZE).fill(null)),
+            vLines: Array(GRID_SIZE).fill().map(() => Array(DOTS_COUNT).fill(null)),
+            boxes: Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(null)),
+            p1Score: 0,
+            p2Score: 0,
+            currentPlayer: 1,
+            gameOver: false
+        };
+        initBoard();
+        updateScores();
+        updateUI();
+    }
+
+    window.onload = initBoard;
+</script>
+
+</body>
+</html>
