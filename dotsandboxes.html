@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dots and Boxes</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            font-size: 1.2em;
+            gap: 30px;
+        }
+
+        .score-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .game-score {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            margin: 20px 0;
+            font-size: 1.5em;
+        }
+
+        .player-score {
+            background: rgba(103, 126, 234, 0.5);
+            padding: 15px 25px;
+            border-radius: 15px;
+            font-weight: bold;
+        }
+
+        .computer-score {
+            background: rgba(118, 75, 162, 0.5);
+            padding: 15px 25px;
+            border-radius: 15px;
+            font-weight: bold;
+        }
+
+        .wins-needed {
+            margin: 10px 0;
+            font-size: 1.1em;
+            color: #ffeb3b;
+            font-weight: bold;
+        }
+
+        .board-container {
+            display: inline-block;
+            margin: 30px auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+        }
+
+        .board {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        .line {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .line:hover {
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(1.05);
+        }
+
+        .line.horizontal {
+            height: 6px;
+            transform: translateY(-50%);
+        }
+
+        .line.vertical {
+            width: 6px;
+            transform: translateX(-50%);
+        }
+
+        .line.taken {
+            cursor: not-allowed;
+        }
+
+        .line.player {
+            background: rgba(103, 126, 234, 0.9);
+        }
+
+        .line.computer {
+            background: rgba(118, 75, 162, 0.9);
+        }
+
+        .box {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            font-weight: bold;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .box.player {
+            background: rgba(103, 126, 234, 0.6);
+            animation: boxClaim 0.5s ease-out;
+        }
+
+        .box.computer {
+            background: rgba(118, 75, 162, 0.6);
+            animation: boxClaim 0.5s ease-out;
+        }
+
+        @keyframes boxClaim {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .status {
+            font-size: 1.5em;
+            margin: 20px 0;
+            min-height: 40px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .reset-btn {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            border: 2px solid white;
+            padding: 12px 30px;
+            font-size: 1.1em;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .reset-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        .win-animation {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .redirect-message {
+            font-size: 1.3em;
+            color: #ffeb3b;
+            margin: 15px 0;
+            font-weight: bold;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50%, 100% { opacity: 1; }
+            25%, 75% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⬚ Dots and Boxes ⬚</h1>
+
+        <div class="score-board">
+            <div class="score-item">Games Won: <span id="player-wins">0</span></div>
+            <div class="score-item">Computer Won: <span id="computer-wins">0</span></div>
+        </div>
+
+        <div class="game-score">
+            <div class="player-score">You: <span id="player-boxes">0</span></div>
+            <div class="computer-score">Computer: <span id="computer-boxes">0</span></div>
+        </div>
+
+        <div class="wins-needed">Win 3 games to unlock a surprise! 🎉</div>
+
+        <div class="status" id="status">Your turn! Click a line</div>
+
+        <div class="board-container">
+            <div class="board" id="board"></div>
+        </div>
+
+        <button class="reset-btn" onclick="resetGame()">New Game</button>
+    </div>
+
+    <script>
+        const GRID_SIZE = 4; // 4x4 dots = 3x3 boxes
+        const DOT_SPACING = 80;
+        const LINE_LENGTH = DOT_SPACING - 12;
+
+        let playerBoxes = 0;
+        let computerBoxes = 0;
+        let playerWins = 0;
+        let computerWins = 0;
+        let currentPlayer = 'player';
+        let gameActive = true;
+
+        const horizontalLines = [];
+        const verticalLines = [];
+        const boxes = [];
+
+        function initializeGame() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            board.style.width = (GRID_SIZE - 1) * DOT_SPACING + 24 + 'px';
+            board.style.height = (GRID_SIZE - 1) * DOT_SPACING + 24 + 'px';
+
+            // Initialize line states
+            for (let i = 0; i < GRID_SIZE; i++) {
+                horizontalLines[i] = [];
+                verticalLines[i] = [];
+                for (let j = 0; j < GRID_SIZE - 1; j++) {
+                    horizontalLines[i][j] = null;
+                }
+                for (let j = 0; j < GRID_SIZE - 1; j++) {
+                    verticalLines[i][j] = null;
+                }
+            }
+
+            // Initialize box states
+            for (let i = 0; i < GRID_SIZE - 1; i++) {
+                boxes[i] = [];
+                for (let j = 0; j < GRID_SIZE - 1; j++) {
+                    boxes[i][j] = null;
+                }
+            }
+
+            // Create dots
+            for (let row = 0; row < GRID_SIZE; row++) {
+                for (let col = 0; col < GRID_SIZE; col++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'dot';
+                    dot.style.left = col * DOT_SPACING + 12 + 'px';
+                    dot.style.top = row * DOT_SPACING + 12 + 'px';
+                    board.appendChild(dot);
+                }
+            }
+
+            // Create horizontal lines
+            for (let row = 0; row < GRID_SIZE; row++) {
+                for (let col = 0; col < GRID_SIZE - 1; col++) {
+                    const line = document.createElement('div');
+                    line.className = 'line horizontal';
+                    line.style.left = col * DOT_SPACING + 18 + 'px';
+                    line.style.top = row * DOT_SPACING + 12 + 'px';
+                    line.style.width = LINE_LENGTH + 'px';
+                    line.dataset.row = row;
+                    line.dataset.col = col;
+                    line.dataset.type = 'horizontal';
+                    line.addEventListener('click', handleLineClick);
+                    board.appendChild(line);
+                }
+            }
+
+            // Create vertical lines
+            for (let row = 0; row < GRID_SIZE - 1; row++) {
+                for (let col = 0; col < GRID_SIZE; col++) {
+                    const line = document.createElement('div');
+                    line.className = 'line vertical';
+                    line.style.left = col * DOT_SPACING + 12 + 'px';
+                    line.style.top = row * DOT_SPACING + 18 + 'px';
+                    line.style.height = LINE_LENGTH + 'px';
+                    line.dataset.row = row;
+                    line.dataset.col = col;
+                    line.dataset.type = 'vertical';
+                    line.addEventListener('click', handleLineClick);
+                    board.appendChild(line);
+                }
+            }
+
+            playerBoxes = 0;
+            computerBoxes = 0;
+            currentPlayer = 'player';
+            gameActive = true;
+            updateScores();
+            document.getElementById('status').textContent = 'Your turn! Click a line';
+        }
+
+        function handleLineClick(event) {
+            if (!gameActive || currentPlayer !== 'player') return;
+
+            const line = event.target;
+            const row = parseInt(line.dataset.row);
+            const col = parseInt(line.dataset.col);
+            const type = line.dataset.type;
+
+            if (type === 'horizontal' && horizontalLines[row][col] !== null) return;
+            if (type === 'vertical' && verticalLines[row][col] !== null) return;
+
+            makeMove(line, row, col, type, 'player');
+        }
+
+        function makeMove(line, row, col, type, player) {
+            // Mark the line
+            if (type === 'horizontal') {
+                horizontalLines[row][col] = player;
+            } else {
+                verticalLines[row][col] = player;
+            }
+
+            line.classList.add('taken', player);
+            line.style.pointerEvents = 'none';
+
+            // Check for completed boxes
+            const completedBoxes = checkCompletedBoxes(row, col, type);
+
+            if (completedBoxes > 0) {
+                if (player === 'player') {
+                    playerBoxes += completedBoxes;
+                } else {
+                    computerBoxes += completedBoxes;
+                }
+                updateScores();
+
+                // Same player goes again
+                if (checkGameOver()) {
+                    endGame();
+                } else {
+                    updateStatus();
+                    if (player === 'computer') {
+                        setTimeout(computerMove, 800);
+                    }
+                }
+            } else {
+                // Switch player
+                currentPlayer = currentPlayer === 'player' ? 'computer' : 'player';
+                updateStatus();
+
+                if (currentPlayer === 'computer') {
+                    setTimeout(computerMove, 800);
+                }
+            }
+        }
+
+        function checkCompletedBoxes(row, col, type) {
+            let completed = 0;
+
+            if (type === 'horizontal') {
+                // Check box above
+                if (row > 0) {
+                    if (isBoxComplete(row - 1, col)) {
+                        claimBox(row - 1, col, currentPlayer);
+                        completed++;
+                    }
+                }
+                // Check box below
+                if (row < GRID_SIZE - 1) {
+                    if (isBoxComplete(row, col)) {
+                        claimBox(row, col, currentPlayer);
+                        completed++;
+                    }
+                }
+            } else {
+                // Check box left
+                if (col > 0) {
+                    if (isBoxComplete(row, col - 1)) {
+                        claimBox(row, col - 1, currentPlayer);
+                        completed++;
+                    }
+                }
+                // Check box right
+                if (col < GRID_SIZE - 1) {
+                    if (isBoxComplete(row, col)) {
+                        claimBox(row, col, currentPlayer);
+                        completed++;
+                    }
+                }
+            }
+
+            return completed;
+        }
+
+        function isBoxComplete(row, col) {
+            if (boxes[row][col] !== null) return false;
+
+            return horizontalLines[row][col] !== null &&
+                   horizontalLines[row + 1][col] !== null &&
+                   verticalLines[row][col] !== null &&
+                   verticalLines[row][col + 1] !== null;
+        }
+
+        function claimBox(row, col, player) {
+            boxes[row][col] = player;
+
+            const board = document.getElementById('board');
+            const boxElement = document.createElement('div');
+            boxElement.className = `box ${player}`;
+            boxElement.style.left = col * DOT_SPACING + 18 + 'px';
+            boxElement.style.top = row * DOT_SPACING + 18 + 'px';
+            boxElement.style.width = LINE_LENGTH + 'px';
+            boxElement.style.height = LINE_LENGTH + 'px';
+            boxElement.textContent = player === 'player' ? '😊' : '🤖';
+            board.appendChild(boxElement);
+        }
+
+        function checkGameOver() {
+            const totalBoxes = (GRID_SIZE - 1) * (GRID_SIZE - 1);
+            return (playerBoxes + computerBoxes) === totalBoxes;
+        }
+
+        function endGame() {
+            gameActive = false;
+
+            if (playerBoxes > computerBoxes) {
+                playerWins++;
+                document.getElementById('player-wins').textContent = playerWins;
+                document.getElementById('status').textContent = '🎉 You won this game! 🎉';
+                document.getElementById('status').classList.add('win-animation');
+
+                if (playerWins === 3) {
+                    setTimeout(() => {
+                        document.getElementById('status').innerHTML = '<div class="redirect-message">🏆 3 WINS! Redirecting to Google... 🏆</div>';
+                        setTimeout(() => {
+                            window.location.href = 'https://google.com';
+                        }, 2000);
+                    }, 1500);
+                }
+            } else if (computerBoxes > playerBoxes) {
+                computerWins++;
+                document.getElementById('computer-wins').textContent = computerWins;
+                document.getElementById('status').textContent = '💻 Computer won! Try again!';
+            } else {
+                document.getElementById('status').textContent = '🤝 It\'s a tie!';
+            }
+        }
+
+        function computerMove() {
+            if (!gameActive) return;
+
+            const availableMoves = getAvailableMoves();
+            if (availableMoves.length === 0) return;
+
+            // Strategy: Try to complete a box, then try to avoid giving opponent a box
+            let bestMove = null;
+
+            // First priority: Complete a box
+            for (const move of availableMoves) {
+                const boxCount = simulateMove(move);
+                if (boxCount > 0) {
+                    bestMove = move;
+                    break;
+                }
+            }
+
+            // Second priority: Avoid giving opponent a box
+            if (!bestMove) {
+                const safeMoves = availableMoves.filter(move => {
+                    return !wouldGiveOpponentBox(move);
+                });
+
+                if (safeMoves.length > 0) {
+                    bestMove = safeMoves[Math.floor(Math.random() * safeMoves.length)];
+                } else {
+                    bestMove = availableMoves[Math.floor(Math.random() * availableMoves.length)];
+                }
+            }
+
+            if (bestMove) {
+                const line = document.querySelector(
+                    `.line[data-type="${bestMove.type}"][data-row="${bestMove.row}"][data-col="${bestMove.col}"]`
+                );
+                makeMove(line, bestMove.row, bestMove.col, bestMove.type, 'computer');
+            }
+        }
+
+        function getAvailableMoves() {
+            const moves = [];
+
+            for (let row = 0; row < GRID_SIZE; row++) {
+                for (let col = 0; col < GRID_SIZE - 1; col++) {
+                    if (horizontalLines[row][col] === null) {
+                        moves.push({ type: 'horizontal', row, col });
+                    }
+                }
+            }
+
+            for (let row = 0; row < GRID_SIZE - 1; row++) {
+                for (let col = 0; col < GRID_SIZE; col++) {
+                    if (verticalLines[row][col] === null) {
+                        moves.push({ type: 'vertical', row, col });
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function simulateMove(move) {
+            let completed = 0;
+            const { row, col, type } = move;
+
+            if (type === 'horizontal') {
+                if (row > 0 && wouldCompleteBox(row - 1, col, type)) completed++;
+                if (row < GRID_SIZE - 1 && wouldCompleteBox(row, col, type)) completed++;
+            } else {
+                if (col > 0 && wouldCompleteBox(row, col - 1, type)) completed++;
+                if (col < GRID_SIZE - 1 && wouldCompleteBox(row, col, type)) completed++;
+            }
+
+            return completed;
+        }
+
+        function wouldCompleteBox(boxRow, boxCol, type) {
+            if (boxes[boxRow][boxCol] !== null) return false;
+
+            const top = horizontalLines[boxRow][boxCol];
+            const bottom = horizontalLines[boxRow + 1][boxCol];
+            const left = verticalLines[boxRow][boxCol];
+            const right = verticalLines[boxRow][boxCol + 1];
+
+            const sides = [top, bottom, left, right].filter(x => x !== null).length;
+            return sides === 3;
+        }
+
+        function wouldGiveOpponentBox(move) {
+            const { row, col, type } = move;
+            let wouldGive = false;
+
+            if (type === 'horizontal') {
+                if (row > 0) {
+                    const boxRow = row - 1;
+                    const sides = [
+                        horizontalLines[boxRow][col],
+                        horizontalLines[boxRow + 1][col],
+                        verticalLines[boxRow][col],
+                        verticalLines[boxRow][col + 1]
+                    ].filter(x => x !== null).length;
+                    if (sides === 2) wouldGive = true;
+                }
+                if (row < GRID_SIZE - 1) {
+                    const boxRow = row;
+                    const sides = [
+                        horizontalLines[boxRow][col],
+                        horizontalLines[boxRow + 1][col],
+                        verticalLines[boxRow][col],
+                        verticalLines[boxRow][col + 1]
+                    ].filter(x => x !== null).length;
+                    if (sides === 2) wouldGive = true;
+                }
+            } else {
+                if (col > 0) {
+                    const boxCol = col - 1;
+                    const sides = [
+                        horizontalLines[row][boxCol],
+                        horizontalLines[row + 1][boxCol],
+                        verticalLines[row][boxCol],
+                        verticalLines[row][boxCol + 1]
+                    ].filter(x => x !== null).length;
+                    if (sides === 2) wouldGive = true;
+                }
+                if (col < GRID_SIZE - 1) {
+                    const boxCol = col;
+                    const sides = [
+                        horizontalLines[row][boxCol],
+                        horizontalLines[row + 1][boxCol],
+                        verticalLines[row][boxCol],
+                        verticalLines[row][boxCol + 1]
+                    ].filter(x => x !== null).length;
+                    if (sides === 2) wouldGive = true;
+                }
+            }
+
+            return wouldGive;
+        }
+
+        function updateScores() {
+            document.getElementById('player-boxes').textContent = playerBoxes;
+            document.getElementById('computer-boxes').textContent = computerBoxes;
+        }
+
+        function updateStatus() {
+            if (currentPlayer === 'player') {
+                document.getElementById('status').textContent = 'Your turn! Click a line';
+            } else {
+                document.getElementById('status').textContent = 'Computer is thinking...';
+            }
+        }
+
+        function resetGame() {
+            document.getElementById('status').classList.remove('win-animation');
+            initializeGame();
+        }
+
+        // Initialize the game on load
+        initializeGame();
+    </script>
+</body>
+</html>

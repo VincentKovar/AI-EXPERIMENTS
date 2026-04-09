@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            font-size: 1.2em;
+            gap: 30px;
+        }
+
+        .score-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .wins-needed {
+            margin: 10px 0;
+            font-size: 1.1em;
+            color: #ffeb3b;
+            font-weight: bold;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 120px);
+            grid-template-rows: repeat(3, 120px);
+            gap: 10px;
+            margin: 30px auto;
+        }
+
+        .cell {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 10px;
+            font-size: 3em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #667eea;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .cell:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .cell:disabled {
+            cursor: not-allowed;
+        }
+
+        .cell.x {
+            color: #667eea;
+        }
+
+        .cell.o {
+            color: #764ba2;
+        }
+
+        .status {
+            font-size: 1.5em;
+            margin: 20px 0;
+            min-height: 40px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .reset-btn {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            border: 2px solid white;
+            padding: 12px 30px;
+            font-size: 1.1em;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .reset-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        .win-animation {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .redirect-message {
+            font-size: 1.3em;
+            color: #ffeb3b;
+            margin: 15px 0;
+            font-weight: bold;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50%, 100% { opacity: 1; }
+            25%, 75% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⭕ Tic Tac Toe ❌</h1>
+
+        <div class="score-board">
+            <div class="score-item">Player (X): <span id="player-score">0</span></div>
+            <div class="score-item">Computer (O): <span id="computer-score">0</span></div>
+            <div class="score-item">Draws: <span id="draw-score">0</span></div>
+        </div>
+
+        <div class="wins-needed">Win 3 times to unlock a surprise! 🎉</div>
+
+        <div class="status" id="status">Your turn! Place your X</div>
+
+        <div class="board" id="board">
+            <button class="cell" data-index="0"></button>
+            <button class="cell" data-index="1"></button>
+            <button class="cell" data-index="2"></button>
+            <button class="cell" data-index="3"></button>
+            <button class="cell" data-index="4"></button>
+            <button class="cell" data-index="5"></button>
+            <button class="cell" data-index="6"></button>
+            <button class="cell" data-index="7"></button>
+            <button class="cell" data-index="8"></button>
+        </div>
+
+        <button class="reset-btn" onclick="resetGame()">New Game</button>
+    </div>
+
+    <script>
+        const cells = document.querySelectorAll('.cell');
+        const statusDisplay = document.getElementById('status');
+        const playerScoreDisplay = document.getElementById('player-score');
+        const computerScoreDisplay = document.getElementById('computer-score');
+        const drawScoreDisplay = document.getElementById('draw-score');
+
+        let board = ['', '', '', '', '', '', '', '', ''];
+        let currentPlayer = 'X';
+        let gameActive = true;
+        let playerWins = 0;
+        let computerWins = 0;
+        let draws = 0;
+
+        const winningConditions = [
+            [0, 1, 2],
+            [3, 4, 5],
+            [6, 7, 8],
+            [0, 3, 6],
+            [1, 4, 7],
+            [2, 5, 8],
+            [0, 4, 8],
+            [2, 4, 6]
+        ];
+
+        function handleCellClick(clickedCellEvent) {
+            const clickedCell = clickedCellEvent.target;
+            const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+
+            if (board[clickedCellIndex] !== '' || !gameActive || currentPlayer === 'O') {
+                return;
+            }
+
+            handleCellPlayed(clickedCell, clickedCellIndex);
+            handleResultValidation();
+
+            if (gameActive) {
+                setTimeout(computerMove, 500);
+            }
+        }
+
+        function handleCellPlayed(clickedCell, clickedCellIndex) {
+            board[clickedCellIndex] = currentPlayer;
+            clickedCell.textContent = currentPlayer;
+            clickedCell.classList.add(currentPlayer.toLowerCase());
+            clickedCell.disabled = true;
+        }
+
+        function handleResultValidation() {
+            let roundWon = false;
+            let winningCombination = null;
+
+            for (let i = 0; i < winningConditions.length; i++) {
+                const winCondition = winningConditions[i];
+                const a = board[winCondition[0]];
+                const b = board[winCondition[1]];
+                const c = board[winCondition[2]];
+
+                if (a === '' || b === '' || c === '') {
+                    continue;
+                }
+
+                if (a === b && b === c) {
+                    roundWon = true;
+                    winningCombination = winCondition;
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                if (currentPlayer === 'X') {
+                    playerWins++;
+                    playerScoreDisplay.textContent = playerWins;
+                    statusDisplay.textContent = '🎉 You won! 🎉';
+                    statusDisplay.classList.add('win-animation');
+
+                    if (playerWins === 3) {
+                        setTimeout(() => {
+                            statusDisplay.innerHTML = '<div class="redirect-message">🏆 3 WINS! Redirecting to Google... 🏆</div>';
+                            setTimeout(() => {
+                                window.location.href = 'https://google.com';
+                            }, 2000);
+                        }, 1500);
+                    }
+                } else {
+                    computerWins++;
+                    computerScoreDisplay.textContent = computerWins;
+                    statusDisplay.textContent = '💻 Computer won! Try again!';
+                }
+
+                highlightWinningCells(winningCombination);
+                gameActive = false;
+                return;
+            }
+
+            const roundDraw = !board.includes('');
+            if (roundDraw) {
+                statusDisplay.textContent = '🤝 Draw! No winner this time.';
+                draws++;
+                drawScoreDisplay.textContent = draws;
+                gameActive = false;
+                return;
+            }
+
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            statusDisplay.textContent = currentPlayer === 'X' ? 'Your turn! Place your X' : 'Computer is thinking...';
+        }
+
+        function highlightWinningCells(combination) {
+            combination.forEach(index => {
+                cells[index].style.background = 'rgba(255, 235, 59, 0.7)';
+            });
+        }
+
+        function computerMove() {
+            if (!gameActive) return;
+
+            const availableCells = [];
+            board.forEach((cell, index) => {
+                if (cell === '') {
+                    availableCells.push(index);
+                }
+            });
+
+            if (availableCells.length === 0) return;
+
+            // Try to win
+            let moveIndex = findWinningMove('O');
+
+            // Block player from winning
+            if (moveIndex === null) {
+                moveIndex = findWinningMove('X');
+            }
+
+            // Take center if available
+            if (moveIndex === null && board[4] === '') {
+                moveIndex = 4;
+            }
+
+            // Take a corner
+            if (moveIndex === null) {
+                const corners = [0, 2, 6, 8].filter(i => board[i] === '');
+                if (corners.length > 0) {
+                    moveIndex = corners[Math.floor(Math.random() * corners.length)];
+                }
+            }
+
+            // Take any available cell
+            if (moveIndex === null) {
+                moveIndex = availableCells[Math.floor(Math.random() * availableCells.length)];
+            }
+
+            handleCellPlayed(cells[moveIndex], moveIndex);
+            handleResultValidation();
+        }
+
+        function findWinningMove(player) {
+            for (let i = 0; i < winningConditions.length; i++) {
+                const [a, b, c] = winningConditions[i];
+                const values = [board[a], board[b], board[c]];
+                const playerCount = values.filter(v => v === player).length;
+                const emptyCount = values.filter(v => v === '').length;
+
+                if (playerCount === 2 && emptyCount === 1) {
+                    if (board[a] === '') return a;
+                    if (board[b] === '') return b;
+                    if (board[c] === '') return c;
+                }
+            }
+            return null;
+        }
+
+        function resetGame() {
+            board = ['', '', '', '', '', '', '', '', ''];
+            gameActive = true;
+            currentPlayer = 'X';
+            statusDisplay.textContent = 'Your turn! Place your X';
+            statusDisplay.classList.remove('win-animation');
+            statusDisplay.innerHTML = 'Your turn! Place your X';
+
+            cells.forEach(cell => {
+                cell.textContent = '';
+                cell.disabled = false;
+                cell.classList.remove('x', 'o');
+                cell.style.background = 'rgba(255, 255, 255, 0.9)';
+            });
+        }
+
+        cells.forEach(cell => {
+            cell.addEventListener('click', handleCellClick);
+        });
+
+        // Initialize game
+        statusDisplay.textContent = 'Your turn! Place your X';
+    </script>
+</body>
+</html>
